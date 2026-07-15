@@ -1,63 +1,60 @@
 import { test, expect } from '@playwright/test';
+import { RegistrationPage } from '../pages/registrationPage';
+import { buildRegistrationDetails } from './utils/registrationData';
 
 test.describe('Registration', () => {
-  test('new customer can register and is logged in automatically', async ({ page }) => {
-    const username = `qa_user_${Date.now()}`;
+  let registrationPage: RegistrationPage;
 
-    await page.goto('/parabank/register.htm');
-    await page.locator('#customer\\.firstName').fill('Jane');
-    await page.locator('#customer\\.lastName').fill('Doe');
-    await page.locator('#customer\\.address\\.street').fill('123 Main St');
-    await page.locator('#customer\\.address\\.city').fill('Springfield');
-    await page.locator('#customer\\.address\\.state').fill('IL');
-    await page.locator('#customer\\.address\\.zipCode').fill('62704');
-    await page.locator('#customer\\.phoneNumber').fill('5551234567');
-    await page.locator('#customer\\.ssn').fill('123-45-6789');
-    await page.locator('#customer\\.username').fill(username);
-    await page.locator('#customer\\.password').fill('Password123!');
-    await page.locator('#repeatedPassword').fill('Password123!');
-    await page.locator('input[value="Register"]').click();
+  test.beforeEach(async ({ page }) => {
+    registrationPage = new RegistrationPage(page);
+    await registrationPage.goto();
+  });
 
-    await expect(page.locator('#rightPanel p')).toContainText(
-      'Your account was created successfully'
-    );
+  test('Registration form fields are displayed', async () => {
+    await expect(registrationPage.firstNameInput).toBeVisible();
+    await expect(registrationPage.lastNameInput).toBeVisible();
+    await expect(registrationPage.usernameInput).toBeVisible();
+    await expect(registrationPage.passwordInput).toBeVisible();
+    await expect(registrationPage.registerButton).toBeVisible();
+  });
+
+  test('New customer can register and is logged in automatically', async ({ page }) => {
+    const details = buildRegistrationDetails();
+    const accountPage = await registrationPage.register(details);
+
     await expect(page).toHaveURL(/overview\.htm/);
+    const message = await registrationPage.getSuccessMessage();
+    expect(message).toContain('Your account was created successfully');
+    expect(await accountPage.getAccountCount()).toBe(1);
   });
 
-  test('registration fails when the two password fields do not match', async ({ page }) => {
-    const username = `qa_user_${Date.now()}`;
+  test('Mismatched passwords show a validation error', async () => {
+    const details = buildRegistrationDetails();
+    await registrationPage.fillRegistrationForm({
+      ...details,
+      repeatPassword: 'SomethingElse!',
+    });
+    await registrationPage.submitRegistration();
 
-    await page.goto('/parabank/register.htm');
-    await page.locator('#customer\\.firstName').fill('Jane');
-    await page.locator('#customer\\.lastName').fill('Doe');
-    await page.locator('#customer\\.address\\.street').fill('123 Main St');
-    await page.locator('#customer\\.address\\.city').fill('Springfield');
-    await page.locator('#customer\\.address\\.state').fill('IL');
-    await page.locator('#customer\\.address\\.zipCode').fill('62704');
-    await page.locator('#customer\\.phoneNumber').fill('5551234567');
-    await page.locator('#customer\\.ssn').fill('123-45-6789');
-    await page.locator('#customer\\.username').fill(username);
-    await page.locator('#customer\\.password').fill('Password123!');
-    await page.locator('#repeatedPassword').fill('SomethingElse!');
-    await page.locator('input[value="Register"]').click();
-
-    await expect(page.locator('.error')).toContainText('Passwords did not match');
+    const error = await registrationPage.getErrorMessage();
+    expect(error).toContain('Passwords did not match');
   });
 
-  test('registration fails when username is left blank', async ({ page }) => {
-    await page.goto('/parabank/register.htm');
-    await page.locator('#customer\\.firstName').fill('Jane');
-    await page.locator('#customer\\.lastName').fill('Doe');
-    await page.locator('#customer\\.address\\.street').fill('123 Main St');
-    await page.locator('#customer\\.address\\.city').fill('Springfield');
-    await page.locator('#customer\\.address\\.state').fill('IL');
-    await page.locator('#customer\\.address\\.zipCode').fill('62704');
-    await page.locator('#customer\\.phoneNumber').fill('5551234567');
-    await page.locator('#customer\\.ssn').fill('123-45-6789');
-    await page.locator('#customer\\.password').fill('Password123!');
-    await page.locator('#repeatedPassword').fill('Password123!');
-    await page.locator('input[value="Register"]').click();
+  test('Blank username shows a required-field error', async () => {
+    const details = buildRegistrationDetails({ username: '' });
+    await registrationPage.fillRegistrationForm(details);
+    await registrationPage.submitRegistration();
 
-    await expect(page.locator('.error')).toContainText('Username is required');
+    const error = await registrationPage.getErrorMessage();
+    expect(error).toContain('Username is required');
+  });
+
+  test('Blank last name shows a required-field error', async () => {
+    const details = buildRegistrationDetails({ lastName: '' });
+    await registrationPage.fillRegistrationForm(details);
+    await registrationPage.submitRegistration();
+
+    const error = await registrationPage.getErrorMessage();
+    expect(error).toContain('Last name is required');
   });
 });

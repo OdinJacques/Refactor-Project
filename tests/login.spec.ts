@@ -1,41 +1,62 @@
 import { test, expect } from '@playwright/test';
+import { LoginPage } from '../pages/loginPage';
+import { RegistrationPage } from '../pages/registrationPage';
+import { buildRegistrationDetails } from './utils/registrationData';
 
 test.describe('Login', () => {
-  test('invalid credentials show an error on the public login page', async ({ page }) => {
-    await page.goto('/parabank/index.htm');
-    await page.locator('input[name="username"]').fill('not_a_real_user');
-    await page.locator('input[name="password"]').fill('wrong_password');
-    await page.locator('input[value="Log In"]').click();
+  let loginPage: LoginPage;
 
-    await expect(page.locator('#rightPanel p.error')).toContainText('could not be verified');
+  test.beforeEach(async ({ page }) => {
+    loginPage = new LoginPage(page);
+    await loginPage.goto();
   });
 
-  test('registered customer can log out then log back in', async ({ page }) => {
-    const username = `qa_user_${Date.now()}`;
-    const password = 'Password123!';
+  test('Login elements are displayed', async () => {
+    await expect(loginPage.usernameInput).toBeVisible();
+    await expect(loginPage.passwordInput).toBeVisible();
+    await expect(loginPage.loginButton).toBeVisible();
+  });
 
-    // Registration duplicated here again just to get a valid account to log in with.
-    await page.goto('/parabank/register.htm');
-    await page.locator('#customer\\.firstName').fill('Jane');
-    await page.locator('#customer\\.lastName').fill('Doe');
-    await page.locator('#customer\\.address\\.street').fill('123 Main St');
-    await page.locator('#customer\\.address\\.city').fill('Springfield');
-    await page.locator('#customer\\.address\\.state').fill('IL');
-    await page.locator('#customer\\.address\\.zipCode').fill('62704');
-    await page.locator('#customer\\.phoneNumber').fill('5551234567');
-    await page.locator('#customer\\.ssn').fill('123-45-6789');
-    await page.locator('#customer\\.username').fill(username);
-    await page.locator('#customer\\.password').fill(password);
-    await page.locator('#repeatedPassword').fill(password);
-    await page.locator('input[value="Register"]').click();
+  test('Unknown username shows a credentials-mismatch error', async () => {
+    await loginPage.attemptLogin('not_a_real_user', 'wrong_password');
 
-    // Log out, then exercise the login form explicitly.
-    await page.locator('#leftPanel a[href="logout.htm"]').click();
-    await page.locator('input[name="username"]').fill(username);
-    await page.locator('input[name="password"]').fill(password);
-    await page.locator('input[value="Log In"]').click();
+    const error = await loginPage.getErrorMessage();
+    expect(error).toContain('could not be verified');
+  });
+
+  test('Blank credentials show a login error', async () => {
+    await loginPage.attemptLogin('', '');
+
+    const error = await loginPage.getErrorMessage();
+    expect(error.length).toBeGreaterThan(0);
+  });
+});
+
+test.describe('Login with a registered customer', () => {
+  test('Registered customer can log out then log back in', async ({ page }) => {
+    const registrationPage = new RegistrationPage(page);
+    const details = buildRegistrationDetails();
+
+    await registrationPage.goto();
+    const accountPage = await registrationPage.register(details); // chained: RegistrationPage -> AccountPage
+
+    const loginPage = await accountPage.sidebar.logout(); // chained: SidebarComponent -> LoginPage
+    const overviewPage = await loginPage.login(details.username, details.password); // chained: LoginPage -> AccountPage
 
     await expect(page).toHaveURL(/overview\.htm/);
-    await expect(page.locator('#leftPanel')).toContainText('Accounts Overview');
+    const sidebarText = await overviewPage.sidebar.getSidebarText();
+    expect(sidebarText).toContain('Accounts Overview');
+  });
+
+  test('Cannot access accounts overview after logging out', async ({ page }) => {
+    const registrationPage = new RegistrationPage(page);
+    const details = buildRegistrationDetails();
+
+    await registrationPage.goto();
+    const accountPage = await registrationPage.register(details);
+    const loginPage = await accountPage.sidebar.logout(); // chained: SidebarComponent -> LoginPage
+
+    await page.goto('https://parabank.parasoft.com/parabank/overview.htm');
+    await expect(loginPage.loginButton).toBeVisible();
   });
 });
