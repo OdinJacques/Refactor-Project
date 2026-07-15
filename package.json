@@ -1,0 +1,16 @@
+{
+  "name": "parabank-pom-refactor-starter",
+  "version": "1.0.0",
+  "description": "Pre-refactor flat Playwright TypeScript test suite for ParaBank (parabank.parasoft.com). Target: refactor into layered POM (BasePage + chained page objects + one component object).",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.4"
+  }
+}
