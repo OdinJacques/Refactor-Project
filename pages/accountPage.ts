@@ -1,11 +1,9 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './basePage';
 import { accountPageLocators } from '../locators/accountPage.locators';
-import { SidebarComponent } from '../components/sidebarComponent';
 import type { AccountType } from '../types';
 
 export class AccountPage extends BasePage {
-  readonly sidebar: SidebarComponent;
   readonly accountTable: Locator;
   readonly accountRows: Locator;
   readonly newAccountTypeSelect: Locator;
@@ -15,7 +13,6 @@ export class AccountPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.sidebar = new SidebarComponent(page);
     this.accountTable = page.locator(accountPageLocators.accountTable);
     this.accountRows = page.locator(accountPageLocators.accountRows);
     this.newAccountTypeSelect = page.locator(accountPageLocators.newAccountTypeSelect);
