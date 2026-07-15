@@ -35,16 +35,18 @@ test.describe('Login', () => {
 test.describe('Login with a registered customer', () => {
   test('Registered customer can log out then log back in', async ({ page }) => {
     const registrationPage = new RegistrationPage(page);
+    const loginPage = new LoginPage(page);
     const details = buildRegistrationDetails();
 
     await registrationPage.goto();
     const accountPage = await registrationPage.register(details); // chained: RegistrationPage -> AccountPage
 
-    const loginPage = await accountPage.sidebar.logout(); // chained: SidebarComponent -> LoginPage
+    await accountPage.logout(); // not chained yet — see SidebarComponent commit
+    await loginPage.goto();
     const overviewPage = await loginPage.login(details.username, details.password); // chained: LoginPage -> AccountPage
 
     await expect(page).toHaveURL(/overview\.htm/);
-    const sidebarText = await overviewPage.sidebar.getSidebarText();
+    const sidebarText = await overviewPage.getSidebarText();
     expect(sidebarText).toContain('Accounts Overview');
   });
 
@@ -54,9 +56,9 @@ test.describe('Login with a registered customer', () => {
 
     await registrationPage.goto();
     const accountPage = await registrationPage.register(details);
-    const loginPage = await accountPage.sidebar.logout(); // chained: SidebarComponent -> LoginPage
+    await accountPage.logout();
 
     await page.goto('https://parabank.parasoft.com/parabank/overview.htm');
-    await expect(loginPage.loginButton).toBeVisible();
+    await expect(page.locator('input[value="Log In"]')).toBeVisible();
   });
 });
