@@ -1,9 +1,11 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './basePage';
 import { transferFundsPageLocators } from '../locators/transferFundsPage.locators';
+import { SidebarComponent } from '../components/sidebarComponent';
 import type { TransferFundsDetails } from '../types';
 
 export class TransferFundsPage extends BasePage {
+  readonly sidebar: SidebarComponent;
   readonly amountInput: Locator;
   readonly fromAccountSelect: Locator;
   readonly toAccountSelect: Locator;
@@ -12,6 +14,7 @@ export class TransferFundsPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
+    this.sidebar = new SidebarComponent(page);
     this.amountInput = page.locator(transferFundsPageLocators.amountInput);
     this.fromAccountSelect = page.locator(transferFundsPageLocators.fromAccountSelect);
     this.toAccountSelect = page.locator(transferFundsPageLocators.toAccountSelect);
